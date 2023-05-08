@@ -265,19 +265,43 @@ def get_xpath_text(dom, xpath, index=0):
     return dom.xpath(xpath)[index]
 
 
+def add_cookie_auth():
+    header_str = input("请输入浏览器中登录的header信息: ")
+    global HEADERS
+    HEADERS = json.loads(header_str)
+
+
+def select_course(course_detail_list: list):
+    course_name_list = [item[0] for item in course_detail_list]
+    print("请通过课程序号来选择需要刷课的课程")
+    for index, course_name in enumerate(course_name_list):
+        print(index, course_name)
+    index = -1
+    try:
+        index = int(input("请输入课程对于序号：\n"))
+    except ValueError as e:
+        print("无效课程序号", e)
+        exit(-1)
+    return index
+
+
 if __name__ == '__main__':
     session = requests.session()
     # TODO 账号密码填写
-    auth(session, "此处填写登录账号", "此处填写登录密码")
+    add_cookie_auth()
     login = is_login(session)
     logger.debug(login)
     token = re.search("(?<=token:').*?(?=')", login).group(0)
+    trueName = re.search("(?<=trueName\":\").*?(?=\")", login).group(0)
+    print("登录成功，请误操作职教云浏览器页面，保持当前登录状态唯一\t当前登录用户：", trueName)
+    print("如果提示【请网页退出账号并等待半小时或一小时后再执行】，请点击课程详情，课程学习，点击插件，复制header重新启动")
     mooc_select_mooc_course = student_mooc_select_mooc_course(session, token)
     logger.info(mooc_select_mooc_course)
     if 'data' not in mooc_select_mooc_course:
         logger.info("未查询到需要学习的课程！")
         exit(0)
-    for course in mooc_select_mooc_course['data']:
+    course = mooc_select_mooc_course['data'][select_course(mooc_select_mooc_course['data'])]
+    if course:
         course_id = course[6]
         # learning_time = learning_time_query_learning_time(session, course_id)
         learning_time = {'learnTime': "待获取"}
@@ -313,3 +337,6 @@ if __name__ == '__main__':
                     for k in range(len(s_point)):
                         logger.info("\t\t\t %s", get_xpath_text(s_point[k], "./div[@class='s_pointti']/text()"))
                         eval(get_xpath_text(s_point[k], "./@onclick").replace(";", ""))
+        logger.info("\n课程学习完毕，请手动完成作业,讨论等内容")
+    else:
+        print("无效课程")
